@@ -13,101 +13,197 @@ export default class Comments{
 		this._data = data;
 		this._dom = dom;
 
+		data = Comments.transformData( data );
+
 		data.forEach( comment => this.addComment( comment ) );
 	}
 
-	get data(){
-		return this._data;
+    /**
+	 * Метод преобразовывает массив для построения вложенности
+     * @param data
+     * @returns {Array}
+     */
+	static transformData(data){
+        return Comments.rollDownData( Comments.setLevels( Comments.rollUpData(data) ) );
 	}
 
 
-	view(){
+    /**
+	 * Сворачиваем список для построения дерева
+     * @param arr
+     * @returns {*}
+     */
+    static rollUpData(arr){
+		arr.forEach( item => {
 
+			if(item.parentId !== null) {
+
+				let parentItem = arr.filter( parentItem => parentItem.id === item.parentId )[0];
+
+				if(!parentItem.children) parentItem.children = [];
+                parentItem.children.push( item );
+
+			}
+
+		});
+
+        arr = arr.filter( item => item.parentId === null );
+
+        return arr;
+	}
+
+    /**
+	 * Проставляем уровни смещения (вложенности)
+     * @param arr
+     * @returns {*}
+     */
+    static setLevels(arr){
+
+    	let forEachRecur = (arr, idx) => {
+            arr.forEach( item => {
+            	item._level = idx;
+            	if(item.children && item.children.length) forEachRecur(item.children, idx+1);
+			})
+		};
+        forEachRecur(arr, 0);
+
+        return arr;
+	}
+
+    /**
+	 * Разваорачиваем дерево в одномерный массив
+     * @param arr
+     * @returns {Array}
+     */
+    static rollDownData(arr){
+
+		let result = [];
+
+        let forEachRecur = (arr) => {
+            arr.forEach( item => {
+                result.push(item);
+                if(item.children && item.children.length) forEachRecur(item.children);
+            })
+        };
+        forEachRecur(arr);
+
+		return result;
 	}
 
 
+    /**
+	 * Добавление комментария в DOM-дерево
+     * @param data
+     */
 	addComment( data ){
 
 		let newDiv = document.createElement('div');
 		newDiv.className = 'comment';
 		newDiv.id = data.id;
 		newDiv.innerHTML =
-			`<div class="comment__author">${data.author}</div>` +
+			`<div class="comment__author">${data.author}:</div>` +
 			`<div class="comment__text">${data.text}</div>` +
 			'<div class="comment__controls">'+
+            	'<div class="comment__reply">reply</div>'+
 				'<div class="comment__edit">edit</div>'+
 				'<div class="comment__remove">remove</div>'+
 			'</div>';
 
-		let editBtn = newDiv.querySelector('.comment__edit');
-		let removeBtn = newDiv.querySelector('.comment__remove');
-		let text = newDiv.querySelector('.comment__text');
+        newDiv.style.marginLeft = data._level * 50 + 'px';
+
+        data.view = {
+            block: newDiv,
+            editBtn: newDiv.querySelector('.comment__edit'),
+            removeBtn: newDiv.querySelector('.comment__remove'),
+            replyBtn: newDiv.querySelector('.comment__reply'),
+            text: newDiv.querySelector('.comment__text')
+        };
 
 
-		data.editListener = (...args)=>{
-			this.editComment(...args);
-		};
-		data.removeListener = (...args)=>{
-			this.removeComment(...args);
-		};
+		data.editListener = (...args) => this.editComment(...args);
+		data.removeListener = (...args) => this.removeComment(...args);
+		data.replyListener = (...args) => this.replyComment(...args);
 
-		editBtn.addEventListener('click', data.editListener);
-		removeBtn.addEventListener('click', data.removeListener);
-
-		data.view = {
-			block: newDiv,
-			editBtn,
-			removeBtn,
-			text
-		};
+        data.view.editBtn.addEventListener('click', data.editListener);
+        data.view.removeBtn.addEventListener('click', data.removeListener);
+        data.view.replyBtn.addEventListener('click', data.replyListener);
 
 		this._dom.appendChild(newDiv);
 	}
 
 
+    /**
+	 * Меняем режим сохранить/редактировать
+     * @param e
+     */
 	editComment(e){
 		let commentData = this.findComment(e);
 
 		commentData.editStatus = !commentData.editStatus;
 
-		commentData.view.editBtn.innerHTML = commentData.editStatus ? 'save' : 'edit';
+		let {editBtn, block, text} = commentData.view,
+            newTextBlock;
 
-		let textBlock;
+		// Меняем текст кнопки редактировать/сохранить
+        editBtn.innerHTML = commentData.editStatus ? 'save' : 'edit';
+
 		if(commentData.editStatus){
-			textBlock = document.createElement('textarea');
-			textBlock.value = commentData.text;
+			// Создание <textarea> и установка значения из модели
+			newTextBlock = document.createElement('textarea');
+			newTextBlock.value = commentData.text;
 		} else {
-			commentData.text = commentData.view.text.value;
-			textBlock = document.createElement('div');
-			textBlock.innerHTML = commentData.text;
+			// Замена <textarea> на <div> и сохраниене значения из <textarea>
+			commentData.text = text.value;
+			newTextBlock = document.createElement('div');
+			newTextBlock.innerHTML = commentData.text;
 		}
 
-		textBlock.className = 'comment__text';
+		newTextBlock.className = 'comment__text';
 
-		commentData.view.block.removeChild(commentData.view.text);
-		commentData.view.block.insertBefore(textBlock, commentData.view.block.children[1]);
+		block.removeChild(commentData.view.text);
+		block.insertBefore(newTextBlock, block.children[1]);
 
-		commentData.view.text = textBlock;
+        commentData.view.text = newTextBlock;
 	}
 
 
-
+    /**
+	 * Удалить комментарий
+     * @param e
+     */
 	removeComment(e){
 		let commentData = this.findComment(e);
 
-		commentData.view.editBtn.removeEventListener('click', commentData.editListener);
-		commentData.view.removeBtn.removeEventListener('click', commentData.removeListener);
+		let {editBtn, removeBtn, replyBtn, block} = commentData.view;
 
-		this._dom.removeChild( commentData.view.block );
+		// Ремувим хэндлеры, чтобы не висели в замыкании
+        editBtn.removeEventListener('click', commentData.editListener);
+        removeBtn.removeEventListener('click', commentData.removeListener);
+        replyBtn.removeEventListener('click', commentData.replyListener);
 
+        // Удаляем блок из DOM-дерева
+		this._dom.removeChild( block );
+
+		// Удаляем данные из модели
 		this._data = this._data.filter( obj => obj !== commentData );
 	}
 
+    /**
+     * Добавить комментарий
+     * @param e
+     */
+	replyComment(e){
+        console.log(this.findComment(e));
+	}
 
+
+    /**
+	 * Поиск объекта в модели по DOM-элементу
+     * @param e
+     */
 	findComment(e){
 		let commentDiv = e.path.filter( node => node.className === 'comment' )[0];
-		let commentData = this.data.filter( obj => obj.view.block === commentDiv )[0];
 
-		return commentData;
+		return this._data.filter( obj => obj.view.block === commentDiv )[0];
 	}
 }
