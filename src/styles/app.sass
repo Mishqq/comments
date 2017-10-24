@@ -11,9 +11,19 @@ body
     margin-bottom: 5px
     padding: 5px 15px
     border: 1px solid #B6BDEE
+
+    &:after
+        content: ''
+        display: block
+        overflow: hidden
+        width: 100%
+        height: 0
+        clear: both
+
     &__author
         font-size: 12px
         font-weight: bold
+
     &__text
         display: block
         margin-bottom: 5px
@@ -23,12 +33,18 @@ body
         font-size: 20px
         resize: none
         border: 1px solid #B6BDEE
+
     textarea
         font-style: italic
         font-weight: normal
         font-size: 14px
+
+    &__info
+        display: block
+
     &__controls
-        text-align: right
+        float: right
+
     &__edit, &__remove, &__reply
         display: inline-block
         margin: 0 10px
@@ -39,3 +55,30 @@ body
         transition: background-color 0.25s ease-out
         &:hover
             background-color: lightgray
+
+    &__down, &__up, &__rating
+        display: inline-block
+        vertical-align: middle
+        margin: 0 5px
+        font-weight: bold
+
+    &__rating
+        font-size: 12px
+    &__up, &__down
+        width: 20px
+        height: 20px
+        color: #fff
+        font-size: 18px
+        text-align: center
+        cursor: pointer
+        border-radius: 3px
+        transition: background-color 0.25s ease-out
+    &__up
+        background-color: rgba(51, 178, 26, .3)
+        &:hover
+            background-color: rgba(51, 178, 26, .85)
+    &__down
+        background-color: rgba(255, 19, 49, .3)
+        line-height: 14px
+        &:hover
+            background-color: rgba(255, 19, 49, .85)

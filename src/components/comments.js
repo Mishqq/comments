@@ -1,12 +1,3 @@
-const someCommentTemplate =
-			'<div class="comment__author"></div>'+
-			'<div class="comment__text"></div>'+
-			'<div class="comment__controls">'+
-				'<div class="comment__edit"></div>'+
-				'<div class="comment__remove"></div>'+
-			'</div>';
-
-
 export default class Comments{
 	constructor(dom, data){
 
@@ -26,7 +17,6 @@ export default class Comments{
 	static transformData(data){
         return Comments.rollDownData( Comments.setLevels( Comments.rollUpData(data) ) );
 	}
-
 
     /**
 	 * Сворачиваем список для построения дерева
@@ -90,24 +80,44 @@ export default class Comments{
 		return result;
 	}
 
+    /**
+	 * Изменение рейтига
+     * @param obj
+     * @param flag
+     */
+    static removeRatingCtrl(obj, flag){
+        let {ratingUp, ratingDown, rating} = obj.view;
+
+        obj._raited = true;
+        flag === 'up' ? obj.rating++ : obj.rating--;
+
+        rating.innerHTML = obj.rating;
+        ratingUp.remove();
+        ratingDown.remove();
+    }
+
 
     /**
 	 * Добавление комментария в DOM-дерево
      * @param data
      */
 	addComment( data ){
-
 		let newDiv = document.createElement('div');
 		newDiv.className = 'comment';
 		newDiv.id = data.id;
 		newDiv.innerHTML =
 			`<div class="comment__author">${data.author}:</div>` +
 			`<div class="comment__text">${data.text}</div>` +
-			'<div class="comment__controls">'+
-            	'<div class="comment__reply">reply</div>'+
-				'<div class="comment__edit">edit</div>'+
-				'<div class="comment__remove">remove</div>'+
-			'</div>';
+			`<div class="comment__controls">`+
+            	`<div class="comment__reply">reply</div>`+
+				`<div class="comment__edit">edit</div>`+
+				`<div class="comment__remove">remove</div>`+
+			`</div>`+
+			`<div class="comment__info">`+
+				`<div class="comment__down">-</div>`+
+				`<div class="comment__rating">${data.rating}</div>`+
+				`<div class="comment__up">+</div>`+
+            `</div>`;
 
         newDiv.style.marginLeft = data._level * 50 + 'px';
 
@@ -116,6 +126,9 @@ export default class Comments{
             editBtn: newDiv.querySelector('.comment__edit'),
             removeBtn: newDiv.querySelector('.comment__remove'),
             replyBtn: newDiv.querySelector('.comment__reply'),
+            rating: newDiv.querySelector('.comment__rating'),
+            ratingDown: newDiv.querySelector('.comment__down'),
+            ratingUp: newDiv.querySelector('.comment__up'),
             text: newDiv.querySelector('.comment__text')
         };
 
@@ -123,10 +136,14 @@ export default class Comments{
 		data.editListener = (...args) => this.editComment(...args);
 		data.removeListener = (...args) => this.removeComment(...args);
 		data.replyListener = (...args) => this.replyComment(...args);
+        data.ratingDownListener = (...args) => this.ratingDown(...args);
+        data.ratingUpListener = (...args) => this.ratingUp(...args);
 
         data.view.editBtn.addEventListener('click', data.editListener);
         data.view.removeBtn.addEventListener('click', data.removeListener);
         data.view.replyBtn.addEventListener('click', data.replyListener);
+        data.view.ratingDown.addEventListener('click', data.ratingDownListener);
+        data.view.ratingUp.addEventListener('click', data.ratingUpListener);
 
 		this._dom.appendChild(newDiv);
 	}
@@ -174,12 +191,14 @@ export default class Comments{
 	removeComment(e){
 		let commentData = this.findComment(e);
 
-		let {editBtn, removeBtn, replyBtn, block} = commentData.view;
+		let {editBtn, removeBtn, replyBtn, ratingDown, ratingUp, block} = commentData.view;
 
 		// Ремувим хэндлеры, чтобы не висели в замыкании
         editBtn.removeEventListener('click', commentData.editListener);
         removeBtn.removeEventListener('click', commentData.removeListener);
         replyBtn.removeEventListener('click', commentData.replyListener);
+        ratingDown.removeEventListener('click', commentData.ratingDownListener);
+        ratingUp.removeEventListener('click', commentData.ratingUpListener);
 
         // Удаляем блок из DOM-дерева
 		this._dom.removeChild( block );
@@ -187,6 +206,7 @@ export default class Comments{
 		// Удаляем данные из модели
 		this._data = this._data.filter( obj => obj !== commentData );
 	}
+
 
     /**
      * Добавить комментарий
@@ -206,4 +226,25 @@ export default class Comments{
 
 		return this._data.filter( obj => obj.view.block === commentDiv )[0];
 	}
+
+
+    /**
+	 * Увеличение рейтинг
+     * @param e
+     */
+	ratingUp(e){
+        let commentData = this.findComment(e);
+        Comments.removeRatingCtrl( commentData, 'up' );
+	}
+
+
+    /**
+	 * Уменьшение рейтинга
+     * @param e
+     */
+    ratingDown(e){
+        let commentData = this.findComment(e);
+        Comments.removeRatingCtrl( commentData, 'down' );
+	}
+
 }
