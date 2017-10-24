@@ -43,8 +43,16 @@ export default class Comments{
 		let removeBtn = newDiv.querySelector('.comment__remove');
 		let text = newDiv.querySelector('.comment__text');
 
-		editBtn.addEventListener('click', (...args)=>{this.editComment(...args)});
-		removeBtn.addEventListener('click', (...args)=>{this.removeComment(...args)});
+
+		data.editListener = (...args)=>{
+			this.editComment(...args);
+		};
+		data.removeListener = (...args)=>{
+			this.removeComment(...args);
+		};
+
+		editBtn.addEventListener('click', data.editListener);
+		removeBtn.addEventListener('click', data.removeListener);
 
 		data.view = {
 			block: newDiv,
@@ -58,8 +66,7 @@ export default class Comments{
 
 
 	editComment(e){
-		let commentDiv = e.path.filter( node => node.className === 'comment' )[0];
-		let commentData = this.data.filter( obj => obj.view.block === commentDiv )[0];
+		let commentData = this.findComment(e);
 
 		commentData.editStatus = !commentData.editStatus;
 
@@ -86,7 +93,21 @@ export default class Comments{
 
 
 	removeComment(e){
+		let commentData = this.findComment(e);
+
+		commentData.view.editBtn.removeEventListener('click', commentData.editListener);
+		commentData.view.removeBtn.removeEventListener('click', commentData.removeListener);
+
+		this._dom.removeChild( commentData.view.block );
+
+		this._data = this._data.filter( obj => obj !== commentData );
+	}
 
 
+	findComment(e){
+		let commentDiv = e.path.filter( node => node.className === 'comment' )[0];
+		let commentData = this.data.filter( obj => obj.view.block === commentDiv )[0];
+
+		return commentData;
 	}
 }
