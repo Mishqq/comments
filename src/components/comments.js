@@ -1,12 +1,13 @@
+import {MIN_INPUT_LENGTH, MAX_INPUT_LENGTH, MIN_TEXTAREA_LENGTH, MAX_TEXTAREA_LENGTH, ADD_COMMENT_ERROR_TIME} from '../defs';
+
 export default class Comments{
 	constructor(dom, data){
 
 		this._data = data;
 		this._dom = dom;
 
-		data = Comments.transformData( data );
-
-		data.forEach( comment => this.addComment( comment ) );
+        this.transformDOM();
+        this.initTree();
 	}
 
     /**
@@ -25,6 +26,8 @@ export default class Comments{
      */
     static rollUpData(arr){
 		arr.forEach( item => {
+
+            if(item.children) item.children = null;
 
 			if(item.parentId !== null) {
 
@@ -97,6 +100,43 @@ export default class Comments{
     }
 
 
+    initTree(){
+    	let list = this._dom.querySelector('.comment-list');
+        list.innerHTML = '';
+
+        this._data = Comments.transformData( this._data );
+        this._data.forEach( comment => this.addComment( comment ) );
+	}
+
+
+    transformDOM(){
+        let cList = document.createElement('div'),
+            addCForm = document.createElement('div'),
+			form = document.createElement('div');
+        cList.className = 'comment-list';
+        addCForm.className = 'comment-add-form';
+        form.className = 'add-from';
+
+        this._addCForm = {};
+
+        this._dom.appendChild( this._cList = cList );
+        this._dom.appendChild( this._addCForm.view = addCForm );
+
+        form.innerHTML =
+            `<div class="add-from__author"><input type="text"></div>` +
+            `<div class="add-from__text"><textarea></textarea></div>` +
+            `<div class="add-from__error"></div>` +
+            `<div class="add-from__add">Добавить</div>`;
+
+        this._addCForm.view.appendChild( form );
+        this._addCForm.addBtn = form.querySelector('.add-from__add');
+        this._addCForm.error = form.querySelector('.add-from__error');
+        this._addCForm.textarea = form.querySelector('.add-from__text textarea');
+        this._addCForm.author = form.querySelector('.add-from__author input');
+        this._addCForm.addBtn.addEventListener('click', (...args) => { this.addCommentToEnd(...args) });
+	}
+
+
     /**
 	 * Добавление комментария в DOM-дерево
      * @param data
@@ -122,22 +162,21 @@ export default class Comments{
         newDiv.style.marginLeft = data._level * 50 + 'px';
 
         data.view = {
-            block: newDiv,
-            editBtn: newDiv.querySelector('.comment__edit'),
-            removeBtn: newDiv.querySelector('.comment__remove'),
-            replyBtn: newDiv.querySelector('.comment__reply'),
-            rating: newDiv.querySelector('.comment__rating'),
-            ratingDown: newDiv.querySelector('.comment__down'),
-            ratingUp: newDiv.querySelector('.comment__up'),
-            text: newDiv.querySelector('.comment__text')
+            block: 			newDiv,
+            editBtn: 		newDiv.querySelector('.comment__edit'),
+            removeBtn: 		newDiv.querySelector('.comment__remove'),
+            replyBtn: 		newDiv.querySelector('.comment__reply'),
+            rating: 		newDiv.querySelector('.comment__rating'),
+            ratingDown: 	newDiv.querySelector('.comment__down'),
+            ratingUp: 		newDiv.querySelector('.comment__up'),
+            text: 			newDiv.querySelector('.comment__text')
         };
 
-
-		data.editListener = (...args) => this.editComment(...args);
-		data.removeListener = (...args) => this.removeComment(...args);
-		data.replyListener = (...args) => this.replyComment(...args);
-        data.ratingDownListener = (...args) => this.ratingDown(...args);
-        data.ratingUpListener = (...args) => this.ratingUp(...args);
+		data.editListener = 		(...args) => this.editComment(...args);
+		data.removeListener = 		(...args) => this.removeCommentHandler(...args);
+		data.replyListener = 		(...args) => this.replyComment(...args);
+        data.ratingDownListener = 	(...args) => this.ratingDown(...args);
+        data.ratingUpListener = 	(...args) => this.ratingUp(...args);
 
         data.view.editBtn.addEventListener('click', data.editListener);
         data.view.removeBtn.addEventListener('click', data.removeListener);
@@ -145,7 +184,32 @@ export default class Comments{
         data.view.ratingDown.addEventListener('click', data.ratingDownListener);
         data.view.ratingUp.addEventListener('click', data.ratingUpListener);
 
-		this._dom.appendChild(newDiv);
+        this._cList.appendChild(newDiv);
+	}
+
+
+    /**
+	 * Добавление комментария в конец дерева
+     */
+    addCommentToEnd(){
+    	let {error, textarea, author} = this._addCForm;
+
+    	if(author.value.length <= MIN_INPUT_LENGTH ||
+			author.value.length >= MAX_INPUT_LENGTH ||
+			textarea.value.length <= MIN_TEXTAREA_LENGTH ||
+			textarea.value.length >= MAX_TEXTAREA_LENGTH){
+
+            error.innerHTML = 'Ошибка';
+            setTimeout( ()=>error.innerHTML = '', ADD_COMMENT_ERROR_TIME*1000);
+		} else {
+            error.innerHTML = '';
+
+            this._data.push({
+                id: 22, parentId: 3, author: author.value, text: textarea.value, rating: 0
+			});
+
+            this.initTree();
+		}
 	}
 
 
@@ -184,13 +248,16 @@ export default class Comments{
 	}
 
 
+    removeCommentHandler(e){
+		this.removeComment( this.findComment(e) );
+	};
+
+
     /**
 	 * Удалить комментарий
-     * @param e
+     * @param commentData
      */
-	removeComment(e){
-		let commentData = this.findComment(e);
-
+	removeComment(commentData){
 		let {editBtn, removeBtn, replyBtn, ratingDown, ratingUp, block} = commentData.view;
 
 		// Ремувим хэндлеры, чтобы не висели в замыкании
@@ -205,6 +272,11 @@ export default class Comments{
 
 		// Удаляем данные из модели
 		this._data = this._data.filter( obj => obj !== commentData );
+	}
+
+
+    removeComments(){
+        this._data.forEach( item => this.removeComment( item ) );
 	}
 
 
