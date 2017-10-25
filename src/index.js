@@ -12,7 +12,7 @@ const clearStorage = document.querySelector('#clearStorage');
 
 const commentsController = new Comments(commentBlock, defaultData);
 
-addComment.addEventListener('click', commentsController.addCommentToEnd);
+// addComment.addEventListener('click', commentsController.addCommentToEnd);
 
 clearStorage.addEventListener('click', ()=>{
     window.localStorage.clear();

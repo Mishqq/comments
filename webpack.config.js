@@ -58,7 +58,7 @@ module.exports = {
 	plugins: [
 		new webpack.HotModuleReplacementPlugin(),
 		new HtmlWebpackPlugin({
-			title: 'createJs',
+			title: 'comments',
 			// minify: {
 			// 	collapseWhitespace: true
 			// },

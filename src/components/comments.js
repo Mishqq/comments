@@ -120,6 +120,9 @@ export default class Comments{
     }
 
 
+    /**
+     *
+     */
     initTree(){
         if(!this._viewType) this._viewType = VIEW_MODS.TREE;
 
@@ -153,6 +156,9 @@ export default class Comments{
 	}
 
 
+    /**
+     *
+     */
     transformDOM(){
         let cList = document.createElement('div'),
             sort = document.createElement('ul'),
@@ -302,6 +308,9 @@ export default class Comments{
 	}
 
 
+    /**
+     * @param text
+     */
     viewError(text){
         let {error} = this._addCForm;
 
@@ -312,6 +321,8 @@ export default class Comments{
         error.innerHTML += '<br />' + text;
     };
 
+    /**
+     */
     hideError(){
         let {error} = this._addCForm;
 
@@ -372,6 +383,10 @@ export default class Comments{
 	}
 
 
+    /**
+     *
+     * @param e
+     */
     removeCommentHandler(e){
 		this.removeComment( this.findComment(e) );
 	};
@@ -402,6 +417,9 @@ export default class Comments{
 	}
 
 
+    /**
+     *
+     */
     removeComments(){
         this._data.forEach( item => this.removeComment( item ) );
 	}
@@ -463,6 +481,11 @@ export default class Comments{
 	}
 
 
+    /**
+     *
+     * @param e
+     * @param sortType
+     */
     sortComments(e, sortType){
         e.preventDefault();
 
