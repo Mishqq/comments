@@ -1,9 +1,23 @@
-import {MIN_INPUT_LENGTH, MAX_INPUT_LENGTH, MIN_TEXTAREA_LENGTH, MAX_TEXTAREA_LENGTH, ADD_COMMENT_ERROR_TIME} from '../defs';
+import {
+    MIN_INPUT_LENGTH,
+    MAX_INPUT_LENGTH,
+    MIN_TEXTAREA_LENGTH,
+    MAX_TEXTAREA_LENGTH,
+    ADD_COMMENT_ERROR_TIME,
+    VIEW_MODS,
+    ERRORS,
+    AUTHOR_REGEX,
+    TEXTAREA_REGEX,
+    COMMENT_REGEX
+} from '../defs';
 
 export default class Comments{
-	constructor(dom, data){
+	constructor(dom, originData){
+	    this._originData = originData;
 
-		this._data = data;
+        this._dateReverse = false;
+        this._ratingReverse = false;
+
 		this._dom = dom;
 
         this.transformDOM();
@@ -15,7 +29,7 @@ export default class Comments{
      * @param data
      * @returns {Array}
      */
-	static transformData(data){
+	static transformToTreeData(data){
         return Comments.rollDownData( Comments.setLevels( Comments.rollUpData(data) ) );
 	}
 
@@ -101,27 +115,56 @@ export default class Comments{
 
 
     initTree(){
+        if(!this._viewType) this._viewType = VIEW_MODS.TREE;
+
+        this._data = [];
+        this._originData.forEach( item => {
+            let obj = {};
+            for(let key in item) obj[key] = item[key];
+            this._data.push( obj )
+        } );
+        this._replyCommentId = null;
+
     	let list = this._dom.querySelector('.comment-list');
         list.innerHTML = '';
 
-        this._data = Comments.transformData( this._data );
+        switch(this._viewType){
+            case VIEW_MODS.TREE:
+                this._data = Comments.transformToTreeData( this._data );
+                break;
+            case VIEW_MODS.RATING:
+                this._data.sort( (a, b) => this._ratingReverse ? a.rating < b.rating : a.rating > b.rating );
+                break;
+            case VIEW_MODS.DATE:
+                this._data.sort( (a, b) => this._dateReverse ?
+                    new Date(a.date) < new Date(b.date) :
+                    new Date(a.date) > new Date(b.date)
+                );
+                break;
+        }
+
         this._data.forEach( comment => this.addComment( comment ) );
 	}
 
 
     transformDOM(){
         let cList = document.createElement('div'),
+            sort = document.createElement('ul'),
             addCForm = document.createElement('div'),
 			form = document.createElement('div');
         cList.className = 'comment-list';
+        sort.className = 'comment-sort';
         addCForm.className = 'comment-add-form';
         form.className = 'add-from';
 
         this._addCForm = {};
+        this._sort = {};
 
+        this._dom.appendChild( this._sort.view = sort );
         this._dom.appendChild( this._cList = cList );
         this._dom.appendChild( this._addCForm.view = addCForm );
 
+        // Форма добавления комментария
         form.innerHTML =
             `<div class="add-from__author"><input type="text"></div>` +
             `<div class="add-from__text"><textarea></textarea></div>` +
@@ -133,7 +176,23 @@ export default class Comments{
         this._addCForm.error = form.querySelector('.add-from__error');
         this._addCForm.textarea = form.querySelector('.add-from__text textarea');
         this._addCForm.author = form.querySelector('.add-from__author input');
+
         this._addCForm.addBtn.addEventListener('click', (...args) => { this.addCommentToEnd(...args) });
+
+        // Панель сортировки
+        sort.innerHTML =
+            `<li class="comment-sort__item">Сортировать: </li>`+
+            `<li class="comment-sort__item"><a id="sortDate" href="#">по дате</a></li>`+
+            `<li class="comment-sort__item"><a id="sortRating" href="#">по рейтингу</a></li>`+
+            `<li class="comment-sort__item"><a id="treeMode" href="#">в виде дерева</a></li>`;
+
+        this._sort.dateSort = sort.querySelector('#sortDate');
+        this._sort.rateSort = sort.querySelector('#sortRating');
+        this._sort.treeMode = sort.querySelector('#treeMode');
+
+        this._sort.dateSort.addEventListener('click', (e) => { this.sortComments(e, VIEW_MODS.DATE) });
+        this._sort.rateSort.addEventListener('click', (e) => { this.sortComments(e, VIEW_MODS.RATING) });
+        this._sort.treeMode.addEventListener('click', (e) => { this.sortComments(e, VIEW_MODS.TREE) });
 	}
 
 
@@ -145,8 +204,15 @@ export default class Comments{
 		let newDiv = document.createElement('div');
 		newDiv.className = 'comment';
 		newDiv.id = data.id;
+
+		let date = new Date(data.date);
+        date =
+            '<b>' + (date.getDate()+1) + '.' + (date.getMonth()+1) + '.' + date.getFullYear() + '</b>' + ' ' +
+            '(' + date.getHours() + ':' + date.getMinutes() + ')';
+
 		newDiv.innerHTML =
 			`<div class="comment__author">${data.author}:</div>` +
+            `<div class="comment__date">${date}</div>` +
 			`<div class="comment__text">${data.text}</div>` +
 			`<div class="comment__controls">`+
             	`<div class="comment__reply">reply</div>`+
@@ -192,25 +258,57 @@ export default class Comments{
 	 * Добавление комментария в конец дерева
      */
     addCommentToEnd(){
-    	let {error, textarea, author} = this._addCForm;
+    	let {textarea, author} = this._addCForm;
 
-    	if(author.value.length <= MIN_INPUT_LENGTH ||
-			author.value.length >= MAX_INPUT_LENGTH ||
-			textarea.value.length <= MIN_TEXTAREA_LENGTH ||
-			textarea.value.length >= MAX_TEXTAREA_LENGTH){
+        this.hideError();
 
-            error.innerHTML = 'Ошибка';
-            setTimeout( ()=>error.innerHTML = '', ADD_COMMENT_ERROR_TIME*1000);
-		} else {
-            error.innerHTML = '';
+        if(author.value.length < MIN_INPUT_LENGTH) this.viewError(ERRORS.SHORT_NAME);
+        if(author.value.length > MAX_INPUT_LENGTH) this.viewError(ERRORS.LONG_NAME);
+        if(textarea.value.length < MIN_TEXTAREA_LENGTH) this.viewError(ERRORS.SHORT_TEXT);
+        if(textarea.value.length > MAX_TEXTAREA_LENGTH) this.viewError(ERRORS.LONG_TEXT);
+        if(AUTHOR_REGEX.test(author.value)) this.viewError(ERRORS.BAD_NAME);
 
-            this._data.push({
-                id: 22, parentId: 3, author: author.value, text: textarea.value, rating: 0
-			});
+        if(!this._errorView){
+            this.hideError();
+
+            let idArr = this._originData.map( item => item.id ).sort( (a, b) => a > b );
+
+            let lastId = idArr[ idArr.length-1 ];
+
+            this._originData.push({
+                id: lastId+1,
+                parentId: this._replyCommentId || null,
+                author: author.value,
+                text: textarea.value = textarea.value.replace(TEXTAREA_REGEX, '<br/>'),
+                rating: 0,
+                date: new Date()
+            });
+
+            author.value = '';
+            textarea.value = '';
 
             this.initTree();
-		}
+        }
 	}
+
+
+    viewError(text){
+        let {error} = this._addCForm;
+
+        this._errorView = true;
+
+        if(!error.innerHTML) error.innerHTML = 'Ошибка: ';
+
+        error.innerHTML += '<br />' + text;
+    };
+
+    hideError(){
+        let {error} = this._addCForm;
+
+        this._errorView = false;
+
+        error.innerHTML = '';
+    }
 
 
     /**
@@ -231,12 +329,16 @@ export default class Comments{
 		if(commentData.editStatus){
 			// Создание <textarea> и установка значения из модели
 			newTextBlock = document.createElement('textarea');
-			newTextBlock.value = commentData.text;
+			newTextBlock.value = commentData.text.replace(COMMENT_REGEX, '\n');
 		} else {
 			// Замена <textarea> на <div> и сохраниене значения из <textarea>
-			commentData.text = text.value;
+			commentData.text = text.value.substr(0, MAX_TEXTAREA_LENGTH);
 			newTextBlock = document.createElement('div');
-			newTextBlock.innerHTML = commentData.text;
+
+			let string = commentData.text.replace(TEXTAREA_REGEX, '<br>');
+            string = string.substr(0, MAX_TEXTAREA_LENGTH);
+
+			newTextBlock.innerHTML = string;
 		}
 
 		newTextBlock.className = 'comment__text';
@@ -268,7 +370,7 @@ export default class Comments{
         ratingUp.removeEventListener('click', commentData.ratingUpListener);
 
         // Удаляем блок из DOM-дерева
-		this._dom.removeChild( block );
+        this._cList.removeChild( block );
 
 		// Удаляем данные из модели
 		this._data = this._data.filter( obj => obj !== commentData );
@@ -285,7 +387,9 @@ export default class Comments{
      * @param e
      */
 	replyComment(e){
-        console.log(this.findComment(e));
+        let replyComment = this.findComment(e);
+
+        this._replyCommentId = replyComment.id;
 	}
 
 
@@ -307,6 +411,11 @@ export default class Comments{
 	ratingUp(e){
         let commentData = this.findComment(e);
         Comments.removeRatingCtrl( commentData, 'up' );
+
+        let obj = this._originData.find( item => item.id === commentData.id );
+        obj.rating +=1;
+
+        this.initTree();
 	}
 
 
@@ -317,6 +426,29 @@ export default class Comments{
     ratingDown(e){
         let commentData = this.findComment(e);
         Comments.removeRatingCtrl( commentData, 'down' );
+
+        let obj = this._originData.find( item => item.id === commentData.id );
+        obj.rating -=1;
+
+        this.initTree();
 	}
+
+
+    sortComments(e, sortType){
+        e.preventDefault();
+
+        switch(sortType){
+            case VIEW_MODS.DATE:
+                this._dateReverse = !this._dateReverse;
+                break;
+            case VIEW_MODS.RATING:
+                this._ratingReverse = !this._ratingReverse;
+                break;
+        }
+
+        this._viewType = sortType;
+
+        this.initTree();
+    }
 
 }

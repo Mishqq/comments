@@ -8,9 +8,11 @@ body
 
 
 .comment
+    position: relative
     margin-bottom: 5px
     padding: 5px 15px
-    border: 1px solid #B6BDEE
+    border-top: 1px solid #B6BDEE
+    border-left: 3px solid #B6BDEE
 
     &-list
         margin-bottom: 20px
@@ -27,20 +29,27 @@ body
         font-size: 12px
         font-weight: bold
 
+    &__date
+        position: absolute
+        top: 5px
+        right: 20px
+        font-size: 10px
+
     &__text
         display: block
+        overflow: hidden
         margin-bottom: 5px
-        padding: 15px 35px
+        padding: 5px 35px
         width: 100%
         box-sizing: border-box
         font-size: 20px
         resize: none
-        border: 1px solid #B6BDEE
 
     textarea
         font-style: italic
         font-weight: normal
         font-size: 14px
+        border: 1px solid #B6BDEE
 
     &__info
         display: block
@@ -55,9 +64,10 @@ body
         font-size: 10px
         cursor: pointer
         border-radius: 5px
+        background-color: #F9F9F9
         transition: background-color 0.25s ease-out
         &:hover
-            background-color: lightgray
+            background-color: #D1D1D1
 
     &__down, &__up, &__rating
         display: inline-block
@@ -85,6 +95,25 @@ body
         line-height: 14px
         &:hover
             background-color: rgba(255, 19, 49, .85)
+
+
+    &-sort
+        display: block
+        margin: 10px 0 20px
+        padding: 0 0 10px
+        width: 100%
+        list-style: none
+        border-bottom: 1px solid #3B7F91
+        &__item
+            display: inline-block
+            vertical-align: top
+            margin: 0 15px
+            &:first-child
+                margin-right: 50px
+                margin-left: 0
+            a
+                text-decoration: none
+                color: #3B7F91
 
 .add-from
     margin-bottom: 40px
