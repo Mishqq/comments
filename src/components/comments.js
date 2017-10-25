@@ -11,9 +11,15 @@ import {
     COMMENT_REGEX
 } from '../defs';
 
+const localStorage = window.localStorage;
+
 export default class Comments{
 	constructor(dom, originData){
-	    this._originData = originData;
+	    this._originData = JSON.parse(localStorage.getItem('data')) || originData;
+
+	    if(!localStorage.getItem('data')){
+            localStorage.setItem('data', JSON.stringify(this._originData));
+        }
 
         this._dateReverse = false;
         this._ratingReverse = false;
@@ -273,7 +279,9 @@ export default class Comments{
 
             let idArr = this._originData.map( item => item.id ).sort( (a, b) => a > b );
 
-            let lastId = idArr[ idArr.length-1 ];
+            let lastId = idArr.length ? idArr[ idArr.length-1 ] : 1;
+
+            console.log('lastId ➥', lastId);
 
             this._originData.push({
                 id: lastId+1,
@@ -283,6 +291,8 @@ export default class Comments{
                 rating: 0,
                 date: new Date()
             });
+
+            localStorage.setItem('data', JSON.stringify(this._originData));
 
             author.value = '';
             textarea.value = '';
@@ -331,6 +341,11 @@ export default class Comments{
 			newTextBlock = document.createElement('textarea');
 			newTextBlock.value = commentData.text.replace(COMMENT_REGEX, '\n');
 		} else {
+
+            if(text.value.length < MIN_TEXTAREA_LENGTH) {
+                text.value = 'Ок. Это пустой комментарий';
+            }
+
 			// Замена <textarea> на <div> и сохраниене значения из <textarea>
 			commentData.text = text.value.substr(0, MAX_TEXTAREA_LENGTH);
 			newTextBlock = document.createElement('div');
@@ -339,6 +354,10 @@ export default class Comments{
             string = string.substr(0, MAX_TEXTAREA_LENGTH);
 
 			newTextBlock.innerHTML = string;
+
+            this._originData.forEach( item => {
+                if(item.id === commentData.id) item.text = string;
+            });
 		}
 
 		newTextBlock.className = 'comment__text';
@@ -347,6 +366,9 @@ export default class Comments{
 		block.insertBefore(newTextBlock, block.children[1]);
 
         commentData.view.text = newTextBlock;
+
+
+        localStorage.setItem('data', JSON.stringify(this._originData));
 	}
 
 
@@ -374,6 +396,9 @@ export default class Comments{
 
 		// Удаляем данные из модели
 		this._data = this._data.filter( obj => obj !== commentData );
+
+		this._originData = this._data.filter( obj => obj.id !== commentData.id );
+        localStorage.setItem('data', JSON.stringify(this._originData));
 	}
 
 
@@ -415,6 +440,8 @@ export default class Comments{
         let obj = this._originData.find( item => item.id === commentData.id );
         obj.rating +=1;
 
+        localStorage.setItem('data', JSON.stringify(this._originData));
+
         this.initTree();
 	}
 
@@ -429,6 +456,8 @@ export default class Comments{
 
         let obj = this._originData.find( item => item.id === commentData.id );
         obj.rating -=1;
+
+        localStorage.setItem('data', JSON.stringify(this._originData));
 
         this.initTree();
 	}
@@ -450,5 +479,4 @@ export default class Comments{
 
         this.initTree();
     }
-
 }
