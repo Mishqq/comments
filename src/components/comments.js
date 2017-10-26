@@ -142,9 +142,11 @@ export default class Comments{
                 this._data = Comments.transformToTreeData( this._data );
                 break;
             case VIEW_MODS.RATING:
+	            this._data = this._data.filter( item => item._status !== 'deleted');
                 this._data.sort( (a, b) => this._ratingReverse ? a.rating < b.rating : a.rating > b.rating );
                 break;
             case VIEW_MODS.DATE:
+	            this._data = this._data.filter( item => item._status !== 'deleted');
                 this._data.sort( (a, b) => this._dateReverse ?
                     new Date(a.date) < new Date(b.date) :
                     new Date(a.date) > new Date(b.date)
@@ -222,6 +224,16 @@ export default class Comments{
             '<b>' + (date.getDate()+1) + '.' + (date.getMonth()+1) + '.' + date.getFullYear() + '</b>' + ' ' +
             '(' + date.getHours() + ':' + date.getMinutes() + ')';
 
+
+	    newDiv.style.marginLeft = data._level * 50 + 'px';
+
+        if(data._status === 'deleted'){
+	        newDiv.innerHTML = 'Сообщение удалено';
+	        data.view = {block: newDiv};
+	        this._cList.appendChild(newDiv);
+	        return false
+        }
+
 		newDiv.innerHTML =
 			`<div class="comment__author">${data.author}:</div>` +
             `<div class="comment__date">${date}</div>` +
@@ -236,8 +248,6 @@ export default class Comments{
 				`<div class="comment__rating">${data.rating}</div>`+
 				`<div class="comment__up">+</div>`+
             `</div>`;
-
-        newDiv.style.marginLeft = data._level * 50 + 'px';
 
         data.view = {
             block: 			newDiv,
@@ -407,12 +417,17 @@ export default class Comments{
         ratingUp.removeEventListener('click', commentData.ratingUpListener);
 
         // Удаляем блок из DOM-дерева
-        this._cList.removeChild( block );
+        //this._cList.removeChild( block );
 
 		// Удаляем данные из модели
-		this._data = this._data.filter( obj => obj !== commentData );
+		//this._data = this._data.filter( obj => obj !== commentData );
+	    commentData._status = 'deleted';
+	    commentData.view.block.innerHTML = 'Сообщение удалено';
 
-		this._originData = this._data.filter( obj => obj.id !== commentData.id );
+		// this._originData = this._data.filter( obj => obj.id !== commentData.id );
+		this._originData.forEach( obj => {
+			if(obj.id === commentData.id) obj._status = 'deleted';
+		});
         localStorage.setItem('data', JSON.stringify(this._originData));
 	}
 
