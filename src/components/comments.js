@@ -1,6 +1,10 @@
+import {TweenMax, TweenLite, Power2, TimelineLite} from "gsap";
 import _ from 'lodash';
 import _tpl_comment from '../templates/comment.njk';
 import _tpl_del_comment from '../templates/deleted_comment.njk';
+import _tpl_filter from '../templates/filters.njk';
+import _tpl_form from '../templates/form.njk';
+
 import {
     MIN_INPUT_LENGTH,
     MAX_INPUT_LENGTH,
@@ -29,6 +33,8 @@ export default class Comments{
         this._ratingReverse = false;
 
 		this._dom = dom;
+
+		dom.addEventListener('click', (...args)=>{ this.mainClick(...args) });
 
         this.transformDOM();
         this.initTree();
@@ -129,6 +135,17 @@ export default class Comments{
 			' ' + '(' + date.getHours() + ':' + date.getMinutes() + ')';
 	}
 
+	static createNodeFromString(string){
+		let _t = document.createElement('div');
+		_t.innerHTML = string;
+		return _t.childNodes[0];
+	}
+
+
+	mainClick(e){
+		console.log('e ➠ ', e);
+	}
+
 
     /**
      *
@@ -169,46 +186,27 @@ export default class Comments{
      */
     transformDOM(){
         let cList = document.createElement('div'),
-            sort = document.createElement('ul'),
-            addCForm = document.createElement('div'),
-			form = document.createElement('div');
+            addCForm = document.createElement('div');
         cList.className = 'comment-list';
-        sort.className = 'comment-sort';
         addCForm.className = 'comment-add-form';
-        form.className = 'add-from';
 
         this._addCForm = {};
-        this._sort = {};
+	    this._sort = {};
 
-        this._dom.appendChild( this._sort.view = sort );
+        this._dom.appendChild( this._sort.view = Comments.createNodeFromString(_tpl_filter.render()) );
         this._dom.appendChild( this._cList = cList );
-        this._dom.appendChild( this._addCForm.view = addCForm );
+        this._dom.appendChild( this._addCForm.view = Comments.createNodeFromString(_tpl_form.render()) );
 
-        // Форма добавления комментария
-        form.innerHTML =
-            `<div class="add-from__author"><input type="text"></div>` +
-            `<div class="add-from__text"><textarea></textarea></div>` +
-            `<div class="add-from__error"></div>` +
-            `<div class="add-from__add">Добавить</div>`;
-
-        this._addCForm.view.appendChild( form );
-        this._addCForm.addBtn = form.querySelector('.add-from__add');
-        this._addCForm.error = form.querySelector('.add-from__error');
-        this._addCForm.textarea = form.querySelector('.add-from__text textarea');
-        this._addCForm.author = form.querySelector('.add-from__author input');
+        this._addCForm.addBtn = this._addCForm.view.querySelector('.add-from__add');
+        this._addCForm.error = this._addCForm.view.querySelector('.add-from__error');
+        this._addCForm.textarea = this._addCForm.view.querySelector('.add-from__text textarea');
+        this._addCForm.author = this._addCForm.view.querySelector('.add-from__author input');
 
         this._addCForm.addBtn.addEventListener('click', (...args) => { this.addCommentToEnd(...args) });
 
-        // Панель сортировки
-        sort.innerHTML =
-            `<li class="comment-sort__item">Сортировать: </li>`+
-            `<li class="comment-sort__item"><a id="sortDate" href="#">по дате</a></li>`+
-            `<li class="comment-sort__item"><a id="sortRating" href="#">по рейтингу</a></li>`+
-            `<li class="comment-sort__item"><a id="treeMode" href="#">в виде дерева</a></li>`;
-
-        this._sort.dateSort = sort.querySelector('#sortDate');
-        this._sort.rateSort = sort.querySelector('#sortRating');
-        this._sort.treeMode = sort.querySelector('#treeMode');
+        this._sort.dateSort = this._sort.view.querySelector('#sortDate');
+        this._sort.rateSort = this._sort.view.querySelector('#sortRating');
+        this._sort.treeMode = this._sort.view.querySelector('#treeMode');
 
         this._sort.dateSort.addEventListener('click', (e) => { this.sortComments(e, VIEW_MODS.DATE) });
         this._sort.rateSort.addEventListener('click', (e) => { this.sortComments(e, VIEW_MODS.RATING) });
@@ -221,19 +219,19 @@ export default class Comments{
      * @param data
      */
 	addComment( data ){
-        // Шаблон сообщения
-	    let _t = document.createElement('div');
-	    _t.innerHTML = data._status === 'deleted' ?
-		    _t.innerHTML = _tpl_del_comment.render({author: data.author, date: Comments.dateTransform(data.date)}) :
-		    _tpl_comment.render({
-			    author: data.author, date: Comments.dateTransform(data.date), comment: data.text, rating: data.rating
-		    });
+		let renderData = {
+			author: data.author,
+			date: Comments.dateTransform(data.date),
+			comment: data.text,
+			rating: data.rating
+		};
 
-	    let commentHtml = _t.childNodes[0];
-	    this._cList.appendChild(commentHtml);
-
+	    let commentHtml = Comments.createNodeFromString(
+		    data._status === 'deleted' ? _tpl_del_comment.render(renderData) : _tpl_comment.render(renderData)
+	    );
 	    commentHtml.id = data.id;
 	    commentHtml.style.marginLeft = data._level * 50 + 'px';
+	    this._cList.appendChild(commentHtml);
 
 	    data.view = {};
 	    data.view.block = commentHtml;
