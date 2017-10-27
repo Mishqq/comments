@@ -42,3 +42,15 @@ export const TEXTAREA_REGEX = /\n/g;
 
 export const COMMENT_REGEX = /<br>/g;
 
+export const INTERACTIVE = {
+    ADD_COMMENT: 'i-add-comment',
+    SORT_DATE: 'i-sort-date',
+    SORT_RATE: 'i-sort-rate',
+    SORT_TREE: 'i-sort-tree',
+    COMMENT_REPLY: 'i-comment-reply',
+    COMMENT_EDIT: 'i-comment-edit',
+    COMMENT_REMOVE: 'i-comment-remove',
+    COMMENT_DOWN: 'i-comment-down',
+    COMMENT_UP: 'i-comment-up'
+};
+

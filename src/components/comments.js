@@ -15,7 +15,8 @@ import {
     ERRORS,
     AUTHOR_REGEX,
     TEXTAREA_REGEX,
-    COMMENT_REGEX
+    COMMENT_REGEX,
+	INTERACTIVE
 } from '../defs';
 
 const localStorage = window.localStorage;
@@ -143,7 +144,40 @@ export default class Comments{
 
 
 	mainClick(e){
-		console.log('e ➠ ', e);
+		let key;
+		e.path.forEach( elem => {
+			let val = _.findKey(INTERACTIVE, (o)=> {
+				let _re = new RegExp(o);
+				return _re.test(elem.className)
+			});
+			if(val) key = val;
+		});
+
+		switch (INTERACTIVE[key]){
+			case INTERACTIVE.ADD_COMMENT:
+				break;
+			case INTERACTIVE.COMMENT_DOWN:
+				break;
+			case INTERACTIVE.COMMENT_UP:
+				break;
+			case INTERACTIVE.COMMENT_EDIT:
+				this.editComment(e);
+				break;
+			case INTERACTIVE.COMMENT_REMOVE:
+				this.removeCommentHandler(e);
+				break;
+			case INTERACTIVE.COMMENT_REPLY:
+				this.replyComment(e);
+				break;
+			case INTERACTIVE.SORT_DATE:
+				break;
+			case INTERACTIVE.SORT_RATE:
+				break;
+			case INTERACTIVE.SORT_TREE:
+				break;
+			default:
+				break;
+		}
 	}
 
 
@@ -242,15 +276,9 @@ export default class Comments{
 		    ['ratingDown', 'down'], ['ratingUp', 'up'], ['text', 'text']]
 		    .forEach( arr => data.view[ arr[0] ] = commentHtml.querySelector('.comment__' + arr[1]) );
 
-		data.editListener = 		(...args) => this.editComment(...args);
-		data.removeListener = 		(...args) => this.removeCommentHandler(...args);
-		data.replyListener = 		(...args) => this.replyComment(...args);
         data.ratingDownListener = 	(...args) => this.ratingDown(...args);
         data.ratingUpListener = 	(...args) => this.ratingUp(...args);
 
-        data.view.editBtn.addEventListener('click', data.editListener);
-        data.view.removeBtn.addEventListener('click', data.removeListener);
-        data.view.replyBtn.addEventListener('click', data.replyListener);
         data.view.ratingDown.addEventListener('click', data.ratingDownListener);
         data.view.ratingUp.addEventListener('click', data.ratingUpListener);
 	}
