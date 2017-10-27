@@ -16,7 +16,13 @@ module.exports = {
 	entry: './src/index.js',
 	output: {
 		path: path.resolve(__dirname, 'dist'),
+		// publicPath: "/src/templates/",
 		filename: '[name].bundle.js'
+	},
+	node: {
+		__filename: true,
+		__dirname: true,
+		fs: 'empty'
 	},
 	module: {
 		rules: [
@@ -32,6 +38,10 @@ module.exports = {
 			{
 				test: /\.pug$/,
 				use: ['html-loader', 'pug-html-loader']
+			},
+			{
+				test: /\.(njk|nunjucks)$/,
+				loader: 'nunjucks-loader'
 			},
 			{
 				test: /\.(jpe?g|png|gif|svg)$/i,

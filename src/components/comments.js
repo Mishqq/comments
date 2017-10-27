@@ -1,3 +1,6 @@
+import _ from 'lodash';
+import _tpl_comment from '../templates/comment.njk';
+import _tpl_del_comment from '../templates/deleted_comment.njk';
 import {
     MIN_INPUT_LENGTH,
     MAX_INPUT_LENGTH,
@@ -12,6 +15,7 @@ import {
 } from '../defs';
 
 const localStorage = window.localStorage;
+
 
 export default class Comments{
 	constructor(dom, originData){
@@ -119,6 +123,12 @@ export default class Comments{
         ratingDown.remove();
     }
 
+	static dateTransform(dateString){
+		let date = new Date(dateString);
+		return (date.getDate()+1) + '.' + (date.getMonth()+1) + '.' + date.getFullYear() +
+			' ' + '(' + date.getHours() + ':' + date.getMinutes() + ')';
+	}
+
 
     /**
      *
@@ -126,12 +136,8 @@ export default class Comments{
     initTree(){
         if(!this._viewType) this._viewType = VIEW_MODS.TREE;
 
-        this._data = [];
-        this._originData.forEach( item => {
-            let obj = {};
-            for(let key in item) obj[key] = item[key];
-            this._data.push( obj )
-        } );
+	    this._data = _.cloneDeep(this._originData);
+
         this._replyCommentId = null;
 
     	let list = this._dom.querySelector('.comment-list');
@@ -215,50 +221,28 @@ export default class Comments{
      * @param data
      */
 	addComment( data ){
-		let newDiv = document.createElement('div');
-		newDiv.className = 'comment';
-		newDiv.id = data.id;
+        // Шаблон сообщения
+	    let _t = document.createElement('div');
+	    _t.innerHTML = data._status === 'deleted' ?
+		    _t.innerHTML = _tpl_del_comment.render({author: data.author, date: Comments.dateTransform(data.date)}) :
+		    _tpl_comment.render({
+			    author: data.author, date: Comments.dateTransform(data.date), comment: data.text, rating: data.rating
+		    });
 
-		let date = new Date(data.date);
-        date =
-            '<b>' + (date.getDate()+1) + '.' + (date.getMonth()+1) + '.' + date.getFullYear() + '</b>' + ' ' +
-            '(' + date.getHours() + ':' + date.getMinutes() + ')';
+	    let commentHtml = _t.childNodes[0];
+	    this._cList.appendChild(commentHtml);
 
+	    commentHtml.id = data.id;
+	    commentHtml.style.marginLeft = data._level * 50 + 'px';
 
-	    newDiv.style.marginLeft = data._level * 50 + 'px';
+	    data.view = {};
+	    data.view.block = commentHtml;
 
-        if(data._status === 'deleted'){
-	        newDiv.innerHTML = 'Сообщение удалено';
-	        data.view = {block: newDiv};
-	        this._cList.appendChild(newDiv);
-	        return false
-        }
+	    if(data._status === 'deleted') return false;
 
-		newDiv.innerHTML =
-			`<div class="comment__author">${data.author}:</div>` +
-            `<div class="comment__date">${date}</div>` +
-			`<div class="comment__text">${data.text}</div>` +
-			`<div class="comment__controls">`+
-            	`<div class="comment__reply">reply</div>`+
-				`<div class="comment__edit">edit</div>`+
-				`<div class="comment__remove">remove</div>`+
-			`</div>`+
-			`<div class="comment__info">`+
-				`<div class="comment__down">-</div>`+
-				`<div class="comment__rating">${data.rating}</div>`+
-				`<div class="comment__up">+</div>`+
-            `</div>`;
-
-        data.view = {
-            block: 			newDiv,
-            editBtn: 		newDiv.querySelector('.comment__edit'),
-            removeBtn: 		newDiv.querySelector('.comment__remove'),
-            replyBtn: 		newDiv.querySelector('.comment__reply'),
-            rating: 		newDiv.querySelector('.comment__rating'),
-            ratingDown: 	newDiv.querySelector('.comment__down'),
-            ratingUp: 		newDiv.querySelector('.comment__up'),
-            text: 			newDiv.querySelector('.comment__text')
-        };
+	    [ ['editBtn', 'edit'], ['removeBtn', 'remove'], ['replyBtn', 'reply'], ['rating', 'rating'],
+		    ['ratingDown', 'down'], ['ratingUp', 'up'], ['text', 'text']]
+		    .forEach( arr => data.view[ arr[0] ] = commentHtml.querySelector('.comment__' + arr[1]) );
 
 		data.editListener = 		(...args) => this.editComment(...args);
 		data.removeListener = 		(...args) => this.removeCommentHandler(...args);
@@ -271,8 +255,6 @@ export default class Comments{
         data.view.replyBtn.addEventListener('click', data.replyListener);
         data.view.ratingDown.addEventListener('click', data.ratingDownListener);
         data.view.ratingUp.addEventListener('click', data.ratingUpListener);
-
-        this._cList.appendChild(newDiv);
 	}
 
 
@@ -407,7 +389,7 @@ export default class Comments{
      * @param commentData
      */
 	removeComment(commentData){
-		let {editBtn, removeBtn, replyBtn, ratingDown, ratingUp, block} = commentData.view;
+		let {editBtn, removeBtn, replyBtn, ratingDown, ratingUp} = commentData.view;
 
 		// Ремувим хэндлеры, чтобы не висели в замыкании
         editBtn.removeEventListener('click', commentData.editListener);
@@ -422,7 +404,16 @@ export default class Comments{
 		// Удаляем данные из модели
 		//this._data = this._data.filter( obj => obj !== commentData );
 	    commentData._status = 'deleted';
-	    commentData.view.block.innerHTML = 'Сообщение удалено';
+
+	    let _t = document.createElement('div');
+	    _t.innerHTML = _tpl_del_comment.render({
+		    author: commentData.author, date: Comments.dateTransform(commentData.date)
+	    });
+	    let commentHtml = _t.childNodes[0];
+	    commentHtml.style.marginLeft = commentData._level * 50 + 'px';
+
+	    this._cList.replaceChild(commentHtml, commentData.view.block);
+	    commentData.view.block = commentHtml;
 
 		// this._originData = this._data.filter( obj => obj.id !== commentData.id );
 		this._originData.forEach( obj => {
